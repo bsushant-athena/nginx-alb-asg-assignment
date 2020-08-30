@@ -102,10 +102,6 @@ Resources:
   LaunchConfiguration:
     Properties:
       AssociatePublicIpAddress: 'false'
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeSize: '8'
       ImageId: !Ref 'AmiId'
       InstanceType: !Ref 'InstanceType'
       KeyName: !Ref 'KeyName'
@@ -118,7 +114,6 @@ Resources:
           - - "#!/bin/bash\n"
             - "yum update\n"
             - "yum -y install nginx\n"
-            - "curl http://169.254.169.254/latest/meta-data/local-ipv4\n"
             - "chkconfig nginx on\n"
             - service nginx start
     Type: AWS::AutoScaling::LaunchConfiguration

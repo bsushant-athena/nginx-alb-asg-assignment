@@ -1,5 +1,5 @@
 from troposphere import Base64, FindInMap, GetAtt, Join, Output
-from troposphere import Parameter, Ref, Template, Tags
+from troposphere import Parameter, Ref, Template
 from troposphere import cloudformation, autoscaling
 from troposphere.autoscaling import AutoScalingGroup, Tag
 from troposphere.autoscaling import LaunchConfiguration
@@ -102,6 +102,7 @@ def main():
     NginxInstanceSG = template.add_resource(
         ec2.SecurityGroup(
             "InstanceSecurityGroup",
+            VpcId=Ref(VpcId),
             GroupDescription="Enable SSH and HTTP access on the inbound port",
             SecurityGroupIngress=[
                 ec2.SecurityGroupRule(
@@ -116,8 +117,7 @@ def main():
                     ToPort="80",
                     CidrIp="0.0.0.0/0",
                 )
-            ],
-            VpcId=Ref(VpcId)
+            ]
         )
     )
 
@@ -133,6 +133,7 @@ def main():
     # Add Target Group for the ALB
     TargetGroupNginx = template.add_resource(elb.TargetGroup(
         "TargetGroupNginx",
+        VpcId=Ref(VpcId),
         HealthCheckIntervalSeconds="30",
         HealthCheckProtocol="HTTP",
         HealthCheckTimeoutSeconds="10",
@@ -143,7 +144,6 @@ def main():
         Port="80",
         Protocol="HTTP",
         UnhealthyThresholdCount="3",
-        VpcId=Ref(VpcId)
     ))
 
     # Add ALB listener
@@ -169,18 +169,9 @@ def main():
             "#!/bin/bash\n",
             "yum update\n",
             "yum -y install nginx\n",
-            "curl http://169.254.169.254/latest/meta-data/local-ipv4\n",
             "chkconfig nginx on\n",
             "service nginx start"
         ])),
-        BlockDeviceMappings=[
-            ec2.BlockDeviceMapping(
-                DeviceName="/dev/sda1",
-                Ebs=ec2.EBSBlockDevice(
-                    VolumeSize="8"
-                )
-            ),
-        ],
         SecurityGroups=[Ref(NginxInstanceSG)],
         InstanceType=Ref(InstanceType)
     ))
