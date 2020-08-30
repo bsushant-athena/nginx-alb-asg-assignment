@@ -1,9 +1,38 @@
+Autoscaling.py accepts 11 string parameters:
+
+1) InstanceType - Currently we are allowing '"t2.micro", "t2.small",   "t2.medium", "t2.large", "t2.xlarge"' instance types only
+
+2) KeyName -  EC2 ssh key name
+
+3) ScaleCapacity - Autoscaling max,min,desired capacity param value is decided using this single parameter
+
+4) PublicSubnet1 - Assuming an aws account already has a public subnet created, please provide the name of it
+
+5) PublicSubnet2 - Assuming an aws account already has a second public subnet created, please provide the name of it
+
+6) VPCAvailabilityZone2 - Provide an availability zone name here e.g. "us-east-1a"
+
+7) VPCAvailabilityZone1 - Provide an availability zone name here e.g. "us-east-1b"
+
+8) PrivateSubnet2 - Assuming an aws account already has a second private subnet created, please provide the name of it
+
+9) PrivateSubnet1 - Assuming an aws account already has a private subnet created, please provide the name of it 
+
+10) VpcId - Assuming an aws account already has a vpc created, so please provide the id of it.
+
+11) AmiId - Assuming a "CENTOD BASED AMI" is available in your aws account, please provide id of it.
 
 
-aws cloudformation create-stack --stack-name nginx-asg --template-body file://Autoscaling.yaml --parameters ParameterKey=KeyName,ParameterValue="prdsvc" ParameterKey=InstanceType,ParameterValue="t2.micro" ParameterKey=ScaleCapacity,ParameterValue="2" ParameterKey=PublicSubnet1,ParameterValue="subnet-1993dd36" ParameterKey=PublicSubnet2,ParameterValue="subnet-49dc9e14" ParameterKey=VPCAvailabilityZone2,ParameterValue="us-east-1a" ParameterKey=VPCAvailabilityZone1,ParameterValue="us-east-1c" ParameterKey=NginxSubnet2,ParameterValue="subnet-20dc9e7d" ParameterKey=NginxSubnet1,ParameterValue="subnet-b093dd9f"
+
+Run below command with proper values, once the cfn yml file is generated from the python code::
+Note:: Make sure the stack name is always different or you delete the existing stack name from aws cloudformation
 
 
+aws cloudformation create-stack --stack-name nginx-asg-withalb --template-body file://Autoscaling.yaml --timeout-in-minutes 10 --on-failure DO_NOTHING --parameters ParameterKey=KeyName,ParameterValue="prdsvc" ParameterKey=InstanceType,ParameterValue="t2.micro" ParameterKey=ScaleCapacity,ParameterValue="2" ParameterKey=PublicSubnet1,ParameterValue="subnet-1993dd36" ParameterKey=PublicSubnet2,ParameterValue="subnet-49dc9e14" ParameterKey=VPCAvailabilityZone2,ParameterValue="us-east-1a" ParameterKey=VPCAvailabilityZone1,ParameterValue="us-east-1c" ParameterKey=PrivateSubnet2,ParameterValue="subnet-20dc9e7d" ParameterKey=PrivateSubnet1,ParameterValue="subnet-b093dd9f" ParameterKey=VpcId,ParameterValue="vpc-2971b452" ParameterKey=AmiId,ParameterValue="ami-078c7ecd1becbcb00"
 
-logs
-error
-ASIAQUQL4VXGUTGWLV6T
+
+If the deployment fails, you can see the cause under the cloudformation with the same name as the '--stack-name value' given during deployment. Check for events to identify the root cause of failure
+
+
+Output::
+We generate output with an ALB url which can be accessed from anyone on port 80, you can find the ALB url under 'Outputs' section of cloudformation once the deployment is done.

@@ -8,6 +8,9 @@ Outputs:
       - - http://
         - !GetAtt 'ApplicationElasticLB.DNSName'
 Parameters:
+  AmiId:
+    Description: AMI Id.
+    Type: String
   InstanceType:
     AllowedValues:
       - t2.micro
@@ -15,21 +18,21 @@ Parameters:
       - t2.medium
       - t2.large
       - t2.xlarge
-    ConstraintDescription: must be a valid EC2 instance type.
+    ConstraintDescription: Must be a valid EC2 instance type.
     Default: t2.small
     Description: WebServer EC2 instance type
     Type: String
   KeyName:
     AllowedPattern: '[ -~]*'
-    ConstraintDescription: can contain only ASCII characters.
+    ConstraintDescription: Can contain only ASCII characters.
     Description: Name of an existing EC2 KeyPair to enable SSH access
     MaxLength: '255'
     MinLength: '1'
     Type: String
-  NginxSubnet1:
+  PrivateSubnet1:
     Description: First private VPC subnet ID for the nginx app.
     Type: String
-  NginxSubnet2:
+  PrivateSubnet2:
     Description: Second private VPC subnet ID for the nginx app.
     Type: String
   PublicSubnet1:
@@ -52,6 +55,9 @@ Parameters:
     MaxLength: '255'
     MinLength: '1'
     Type: String
+  VpcId:
+    Description: VPC Id.
+    Type: String
 Resources:
   ApplicationElasticLB:
     Properties:
@@ -72,16 +78,12 @@ Resources:
       HealthCheckType: EC2
       LaunchConfigurationName: !Ref 'LaunchConfiguration'
       MaxSize: !Ref 'ScaleCapacity'
-      MinSize: !Ref 'ScaleCapacity'
-      Tags:
-        - Key: Environment
-          PropagateAtLaunch: true
-          Value: dev-env
+      MinSize: '1'
       TargetGroupARNs:
         - !Ref 'TargetGroupNginx'
       VPCZoneIdentifier:
-        - !Ref 'NginxSubnet1'
-        - !Ref 'NginxSubnet2'
+        - !Ref 'PrivateSubnet1'
+        - !Ref 'PrivateSubnet2'
     Type: AWS::AutoScaling::AutoScalingGroup
   InstanceSecurityGroup:
     Properties:
@@ -95,14 +97,19 @@ Resources:
           FromPort: '80'
           IpProtocol: tcp
           ToPort: '80'
-      VpcId: vpc-2971b452
+      VpcId: !Ref 'VpcId'
     Type: AWS::EC2::SecurityGroup
   LaunchConfiguration:
     Properties:
       AssociatePublicIpAddress: 'false'
-      ImageId: ami-010c850ec0961e419
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '8'
+      ImageId: !Ref 'AmiId'
       InstanceType: !Ref 'InstanceType'
       KeyName: !Ref 'KeyName'
+      LaunchConfigurationName: nginx-LC
       SecurityGroups:
         - !Ref 'InstanceSecurityGroup'
       UserData: !Base64
@@ -136,5 +143,5 @@ Resources:
       Port: '80'
       Protocol: HTTP
       UnhealthyThresholdCount: '3'
-      VpcId: vpc-2971b452
+      VpcId: !Ref 'VpcId'
     Type: AWS::ElasticLoadBalancingV2::TargetGroup

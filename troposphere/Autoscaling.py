@@ -1,5 +1,5 @@
 from troposphere import Base64, FindInMap, GetAtt, Join, Output
-from troposphere import Parameter, Ref, Template
+from troposphere import Parameter, Ref, Template, Tags
 from troposphere import cloudformation, autoscaling
 from troposphere.autoscaling import AutoScalingGroup, Tag
 from troposphere.autoscaling import LaunchConfiguration
@@ -73,14 +73,14 @@ def main():
         MaxLength="255",
     ))
 
-    NginxSubnet2 = template.add_parameter(Parameter(
-        "NginxSubnet2",
+    PrivateSubnet2 = template.add_parameter(Parameter(
+        "PrivateSubnet2",
         Type="String",
         Description="Second private VPC subnet ID for the nginx app.",
     ))
 
-    NginxSubnet1 = template.add_parameter(Parameter(
-        "NginxSubnet1",
+    PrivateSubnet1 = template.add_parameter(Parameter(
+        "PrivateSubnet1",
         Type="String",
         Description="First private VPC subnet ID for the nginx app.",
     ))
@@ -88,22 +88,14 @@ def main():
     VpcId = template.add_parameter(Parameter(
         "VpcId",
         Type="String",
-        Default="vpc-2971b452",
         Description="VPC Id.",
     ))
 
+    # as of now only provide centos based ami id
     AmiId = template.add_parameter(Parameter(
         "AmiId",
         Type="String",
-        Default="ami-e262039d",
         Description="AMI Id.",
-    ))
-
-    StackName = template.add_parameter(Parameter(
-        "StackName",
-        Type="String",
-        Default="nginx-example",
-        Description="StackName used for tagging resources.",
     ))
 
     # Create a common security group
@@ -125,10 +117,7 @@ def main():
                     CidrIp="0.0.0.0/0",
                 )
             ],
-            VpcId=Ref(VpcId),
-            Tags=[
-                Tag("Name", Join(Ref(StackName),'-sg'), True)
-            ]
+            VpcId=Ref(VpcId)
         )
     )
 
@@ -138,10 +127,7 @@ def main():
         Name="ApplicationElasticLB",
         Scheme="internet-facing",
         Subnets=[Ref(PublicSubnet1), Ref(PublicSubnet2)],
-        SecurityGroups=[Ref(NginxInstanceSG)],
-        Tags=[
-            Tag("Name", Join(Ref(StackName),'-lb'), True)
-        ]
+        SecurityGroups=[Ref(NginxInstanceSG)]
     ))
     
     # Add Target Group for the ALB
@@ -157,10 +143,7 @@ def main():
         Port="80",
         Protocol="HTTP",
         UnhealthyThresholdCount="3",
-        VpcId=Ref(VpcId),
-        Tags=[
-            Tag("Name", Join(Ref(StackName),'-tg'), True)
-        ]
+        VpcId=Ref(VpcId)
     ))
 
     # Add ALB listener
@@ -181,8 +164,8 @@ def main():
         ImageId=Ref(AmiId),
         KeyName=Ref(KeyName),
         AssociatePublicIpAddress="False",
-        LaunchConfigurationName=Join(Ref(StackName),'-lc')
-        UserData=Base64(Join('', [
+        LaunchConfigurationName="nginx-LC",
+        UserData=Base64(Join('',[
             "#!/bin/bash\n",
             "yum update\n",
             "yum -y install nginx\n",
@@ -190,6 +173,14 @@ def main():
             "chkconfig nginx on\n",
             "service nginx start"
         ])),
+        BlockDeviceMappings=[
+            ec2.BlockDeviceMapping(
+                DeviceName="/dev/sda1",
+                Ebs=ec2.EBSBlockDevice(
+                    VolumeSize="8"
+                )
+            ),
+        ],
         SecurityGroups=[Ref(NginxInstanceSG)],
         InstanceType=Ref(InstanceType)
     ))
@@ -198,14 +189,11 @@ def main():
     AutoscalingGroup = template.add_resource(AutoScalingGroup(
         "AutoscalingGroup",
         DesiredCapacity=Ref(ScaleCapacity),
-        Tags=[
-            Tag("Name", Join(Ref(StackName),'-asg'), True)
-        ],
         LaunchConfigurationName=Ref(LaunchConfig),
-        MinSize=Ref(ScaleCapacity),
+        MinSize="1",
         TargetGroupARNs=[Ref(TargetGroupNginx)],
         MaxSize=Ref(ScaleCapacity),
-        VPCZoneIdentifier=[Ref(NginxSubnet1), Ref(NginxSubnet2)],
+        VPCZoneIdentifier=[Ref(PrivateSubnet1), Ref(PrivateSubnet2)],
         AvailabilityZones=[Ref(VPCAvailabilityZone1), Ref(VPCAvailabilityZone2)],
         HealthCheckType="EC2"
     ))
