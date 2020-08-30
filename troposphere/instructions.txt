@@ -1,0 +1,9 @@
+
+
+aws cloudformation create-stack --stack-name nginx-asg --template-body file://Autoscaling.yaml --parameters ParameterKey=KeyName,ParameterValue="prdsvc" ParameterKey=InstanceType,ParameterValue="t2.micro" ParameterKey=ScaleCapacity,ParameterValue="2" ParameterKey=PublicSubnet1,ParameterValue="subnet-1993dd36" ParameterKey=PublicSubnet2,ParameterValue="subnet-49dc9e14" ParameterKey=VPCAvailabilityZone2,ParameterValue="us-east-1a" ParameterKey=VPCAvailabilityZone1,ParameterValue="us-east-1c" ParameterKey=NginxSubnet2,ParameterValue="subnet-20dc9e7d" ParameterKey=NginxSubnet1,ParameterValue="subnet-b093dd9f"
+
+
+
+logs
+error
+ASIAQUQL4VXGUTGWLV6T
