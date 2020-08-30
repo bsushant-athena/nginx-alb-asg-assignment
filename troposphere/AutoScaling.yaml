@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: '    Configures autoscaling group for nginx app'
+Outputs:
+  URL:
+    Description: URL of the sample website
+    Value: !Join
+      - ''
+      - - http://
+        - !GetAtt 'ApplicationElasticLB.DNSName'
+Parameters:
+  InstanceType:
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+    Default: t2.small
+    Description: WebServer EC2 instance type
+    Type: String
+  KeyName:
+    AllowedPattern: '[ -~]*'
+    ConstraintDescription: can contain only ASCII characters.
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    MaxLength: '255'
+    MinLength: '1'
+    Type: String
+  NginxSubnet1:
+    Description: First private VPC subnet ID for the nginx app.
+    Type: String
+  NginxSubnet2:
+    Description: Second private VPC subnet ID for the nginx app.
+    Type: String
+  PublicSubnet1:
+    Description: A public VPC subnet ID for the nginx app load balancer.
+    Type: String
+  PublicSubnet2:
+    Description: A public VPC subnet ID for the nginx load balancer.
+    Type: String
+  ScaleCapacity:
+    Default: '1'
+    Description: Number of nginx servers to run
+    Type: String
+  VPCAvailabilityZone1:
+    Description: First availability zone
+    MaxLength: '255'
+    MinLength: '1'
+    Type: String
+  VPCAvailabilityZone2:
+    Description: Second availability zone
+    MaxLength: '255'
+    MinLength: '1'
+    Type: String
+Resources:
+  ApplicationElasticLB:
+    Properties:
+      Name: ApplicationElasticLB
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref 'InstanceSecurityGroup'
+      Subnets:
+        - !Ref 'PublicSubnet1'
+        - !Ref 'PublicSubnet2'
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  AutoscalingGroup:
+    Properties:
+      AvailabilityZones:
+        - !Ref 'VPCAvailabilityZone1'
+        - !Ref 'VPCAvailabilityZone2'
+      DesiredCapacity: !Ref 'ScaleCapacity'
+      HealthCheckType: EC2
+      LaunchConfigurationName: !Ref 'LaunchConfiguration'
+      MaxSize: !Ref 'ScaleCapacity'
+      MinSize: !Ref 'ScaleCapacity'
+      Tags:
+        - Key: Environment
+          PropagateAtLaunch: true
+          Value: dev-env
+      TargetGroupARNs:
+        - !Ref 'TargetGroupNginx'
+      VPCZoneIdentifier:
+        - !Ref 'NginxSubnet1'
+        - !Ref 'NginxSubnet2'
+    Type: AWS::AutoScaling::AutoScalingGroup
+  InstanceSecurityGroup:
+    Properties:
+      GroupDescription: Enable SSH and HTTP access on the inbound port
+      SecurityGroupIngress:
+        - CidrIp: 10.0.0.0/8
+          FromPort: '22'
+          IpProtocol: tcp
+          ToPort: '22'
+        - CidrIp: '0.0.0.0/0'
+          FromPort: '80'
+          IpProtocol: tcp
+          ToPort: '80'
+      VpcId: vpc-2971b452
+    Type: AWS::EC2::SecurityGroup
+  LaunchConfiguration:
+    Properties:
+      AssociatePublicIpAddress: 'false'
+      ImageId: ami-010c850ec0961e419
+      InstanceType: !Ref 'InstanceType'
+      KeyName: !Ref 'KeyName'
+      SecurityGroups:
+        - !Ref 'InstanceSecurityGroup'
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - "#!/bin/bash\n"
+            - "yum update\n"
+            - "yum -y install nginx\n"
+            - "curl http://169.254.169.254/latest/meta-data/local-ipv4\n"
+            - "chkconfig nginx on\n"
+            - service nginx start
+    Type: AWS::AutoScaling::LaunchConfiguration
+  Listener:
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref 'TargetGroupNginx'
+          Type: forward
+      LoadBalancerArn: !Ref 'ApplicationElasticLB'
+      Port: '80'
+      Protocol: HTTP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+  TargetGroupNginx:
+    Properties:
+      HealthCheckIntervalSeconds: '30'
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: '10'
+      HealthyThresholdCount: '4'
+      Matcher:
+        HttpCode: '200'
+      Name: NginxTarget
+      Port: '80'
+      Protocol: HTTP
+      UnhealthyThresholdCount: '3'
+      VpcId: vpc-2971b452
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
