@@ -26,7 +26,6 @@ docker==3.7.2
 docker-pycreds==0.4.0
 docutils==0.14
 doubles==1.5.3
-ecdsa==0.13
 fire==0.3.1
 future==0.17.1
 gast==0.2.2
@@ -86,8 +85,6 @@ tensorflow==2.1.0
 tensorflow-estimator==2.1.0
 termcolor==1.1.0
 troposphere==2.6.2
-urllib3==1.24.1
 websocket-client==0.56.0
-Werkzeug==0.15.2
 wrapt==1.11.1
 xmltodict==0.12.0
